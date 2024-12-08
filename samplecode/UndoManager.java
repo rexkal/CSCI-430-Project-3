@@ -1,54 +1,89 @@
 import java.util.*;
+
 public class UndoManager {
-  private static Model model;
-  private Stack history;
-  private Stack redoStack;
-  private Command currentCommand;
-  public UndoManager() {
-    history = new Stack();
-    redoStack = new Stack();
-  }
-  public static void setModel(Model model) {
-    UndoManager.model = model;
-  }
-  public void beginCommand(Command command) {
-    if (currentCommand != null) {
-      if (currentCommand.end()) {
-        history.push(currentCommand);
-      }
+    private static Model model;
+    private Stack<Command> history; // Use generic types for better type safety
+    private Stack<Command> redoStack; 
+    private Command currentCommand;
+
+    public UndoManager() {
+        history = new Stack<>();
+        redoStack = new Stack<>();
     }
-    currentCommand = command;
-    redoStack.clear();
-    command.execute();
-  }
-  public void endCommand(Command command) {
-    command.end();
-    history.push(command);
-    currentCommand = null;
-    model.setChanged();
-  }
-  
-  public void cancelCommand() {
-    currentCommand = null;
-    model.setChanged();
-  }
-  
-  public void undo() {
-    if (!(history.empty())) {
-      Command command = (Command) (history.peek());
-      if (command.undo()) {
-        history.pop();
-        redoStack.push(command);
-      }
+
+    public static void setModel(Model model) {
+        UndoManager.model = model;
     }
-  }
-  public void redo() {
-    if (!(redoStack.empty())) {
-      Command command = (Command)(redoStack.peek());
-      if (command.redo()) {
-        redoStack.pop();
-        history.push(command);
-      }
+
+    /**
+     * Executes a command and adds it to the history stack.
+     */
+    public void executeCommand(Command command) {
+        if (command != null) {
+            command.execute();
+            history.push(command);
+            redoStack.clear(); // Clear the redo stack because history has changed
+            model.setChanged(); // Notify the model to refresh the view
+        }
     }
-  }
+
+    /**
+     * Begins a command and clears the redo stack.
+     */
+    public void beginCommand(Command command) {
+        if (currentCommand != null) {
+            if (currentCommand.end()) {
+                history.push(currentCommand);
+            }
+        }
+        currentCommand = command;
+        redoStack.clear();
+        command.execute();
+    }
+
+    /**
+     * Ends the current command and pushes it to the history stack.
+     */
+    public void endCommand(Command command) {
+        if (command != null) {
+            command.end();
+            history.push(command);
+            currentCommand = null;
+            model.setChanged();
+        }
+    }
+
+    /**
+     * Cancels the current command without adding it to the history stack.
+     */
+    public void cancelCommand() {
+        currentCommand = null;
+        model.setChanged();
+    }
+
+    /**
+     * Undoes the last executed command.
+     */
+    public void undo() {
+        if (!history.isEmpty()) {
+            Command command = history.pop();
+            if (command.undo()) {
+                redoStack.push(command);
+            }
+            model.setChanged(); // Refresh view after undo
+        }
+    }
+
+    /**
+     * Redoes the last undone command.
+     */
+    public void redo() {
+        if (!redoStack.isEmpty()) {
+            Command command = redoStack.pop();
+            if (command.redo()) {
+                history.push(command);
+            }
+            model.setChanged(); // Refresh view after redo
+        }
+    }
 }
